@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<title>Agenda Facile</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+    body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        padding: 20px;
+        background: #f4f4f4;
+        font-size: 20px;
+    }
+
+    h1 {
+        text-align: center;
+        font-size: 32px;
+    }
+
+    button {
+        width: 100%;
+        padding: 18px;
+        font-size: 22px;
+        margin: 10px 0;
+        border: none;
+        background: #007bff;
+        color: white;
+        border-radius: 10px;
+        cursor: pointer;
+    }
+
+    .card {
+        background: white;
+        padding: 20px;
+        border-radius: 12px;
+        margin: 15px 0;
+        font-size: 22px;
+    }
+
+    .delete-btn {
+        background: #ff3b30;
+        font-size: 18px;
+        margin-top: 10px;
+    }
+
+    #addModal {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,0.65);
+        justify-content: center;
+        align-items: center;
+    }
+
+    .modal-content {
+        background: white;
+        padding: 25px;
+        border-radius: 12px;
+        width: 90%;
+        max-width: 400px;
+    }
+
+    input {
+        width: 100%;
+        padding: 15px;
+        margin: 10px 0;
+        font-size: 20px;
+    }
+</style>
+
+</head>
+<body>
+
+<h1>Agenda Facile</h1>
+
+<button onclick="openModal()">+ Aggiungi</button>
+
+<div id="reminderList"></div>
+
+<div id="addModal">
+    <div class="modal-content">
+        <h2>Nuovo promemoria</h2>
+        <input id="titleInput" type="text" placeholder="Titolo" />
+        <input id="dateInput" type="datetime-local" />
+        <button onclick="saveReminder()">Salva</button>
+        <button class="delete-btn" onclick="closeModal()">Annulla</button>
+    </div>
+</div>
+
+<script>
+let reminders = JSON.parse(localStorage.getItem("reminders") || "[]");
+
+function openModal() {
+    document.getElementById("addModal").style.display = "flex";
+}
+
+function closeModal() {
+    document.getElementById("addModal").style.display = "none";
+}
+
+function saveReminder() {
+    let title = document.getElementById("titleInput").value;
+    let date = document.getElementById("dateInput").value;
+
+    if (!title || !date) {
+        alert("Inserisci titolo e data!");
+        return;
+    }
+
+    let reminder = { id: Date.now(), title, date };
+    reminders.push(reminder);
+    reminders.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+    localStorage.setItem("reminders", JSON.stringify(reminders));
+    showReminders();
+
+    scheduleNotification(reminder);
+
+    closeModal();
+    document.getElementById("titleInput").value = "";
+    document.getElementById("dateInput").value = "";
+}
+
+function showReminders() {
+    let container = document.getElementById("reminderList");
+    container.innerHTML = "";
+    
+    reminders.forEach(r => {
+        let div = document.createElement("div");
+        div.className = "card";
+        div.innerHTML = `
+            🔔 <b>${r.title}</b><br>
+            ${formatDate(r.date)}<br>
+            <button class="delete-btn" onclick="deleteReminder(${r.id})">Elimina</button>
+        `;
+        container.appendChild(div);
+    });
+}
+
+function deleteReminder(id) {
+    reminders = reminders.filter(r => r.id !== id);
+    localStorage.setItem("reminders", JSON.stringify(reminders));
+    showReminders();
+}
+
+function formatDate(dateStr) {
+    let d = new Date(dateStr);
+    return d.toLocaleDateString("it-IT") + " – " + d.toLocaleTimeString("it-IT", {hour: "2-digit", minute: "2-digit"});
+}
+
+function requestNotificationPermission() {
+    if (Notification.permission !== "granted") {
+        Notification.requestPermission();
+    }
+}
+
+function scheduleNotification(reminder) {
+    requestNotificationPermission();
+    
+    let remindTime = new Date(reminder.date).getTime() - (2 * 60 * 60 * 1000); // 2 ore prima
+    let now = Date.now();
+    let delay = remindTime - now;
+
+    if (delay > 0) {
+        setTimeout(() => {
+            new Notification("📌 Promemoria", {
+                body: reminder.title + " tra 2 ore!"
+            });
+        }, delay);
+    }
+}
+
+showReminders();
+requestNotificationPermission();
+</script>
+
+</body>
+</html>
